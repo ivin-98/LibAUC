@@ -25,6 +25,7 @@ class EntLossClassification(nn.Module):
                  alpha: float = 10.0,
                  gamma: float = 0.9,
                  is_scent: bool = True,
+                 alpha_multiplier: float = 1.0,
                  ) -> None:
         super().__init__()
         self.data_size = data_size
@@ -33,6 +34,7 @@ class EntLossClassification(nn.Module):
         self.gamma = gamma
         self.is_scent = is_scent
         self.nu = torch.zeros(data_size, device="cpu").reshape(-1, 1)
+        self.alpha_multiplier = alpha_multiplier
 
     def adjust_gamma(self, epoch: int, max_epoch: int) -> None:
         if not self.is_scent:
@@ -50,7 +52,7 @@ class EntLossClassification(nn.Module):
         uninit_idx = torch.nonzero(nu == 0.0, as_tuple=True)[0]
         exp_logits_mean = torch.sum(torch.exp(logits), dim=-1, keepdim=True).detach() / (logits.shape[1] - 1)
         if self.is_scent:
-            nu = nu + torch.log(1 + math.exp(self.alpha) * exp_logits_mean) - torch.log(1 + math.exp(self.alpha) * torch.exp(nu))
+            nu = nu + torch.log(1 + math.exp(self.alpha * self.alpha_multiplier) * exp_logits_mean) - torch.log(1 + math.exp(self.alpha * self.alpha_multiplier) * torch.exp(nu))
         else:
             b = math.log(1 - self.gamma) + nu
             w = math.log(self.gamma) + torch.log(exp_logits_mean)
