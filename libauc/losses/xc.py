@@ -52,7 +52,8 @@ class EntLossClassification(nn.Module):
         uninit_idx = torch.nonzero(nu == 0.0, as_tuple=True)[0]
         exp_logits_mean = torch.sum(torch.exp(logits), dim=-1, keepdim=True).detach() / (logits.shape[1] - 1)
         if self.is_scent:
-            nu = nu + torch.log(1 + math.exp(self.alpha * self.alpha_multiplier) * exp_logits_mean) - torch.log(1 + math.exp(self.alpha * self.alpha_multiplier) * torch.exp(nu))
+            nu = nu + torch.log(1 + math.exp(self.alpha) * exp_logits_mean * torch.exp(nu * (self.alpha_multiplier - 1.0))) \
+                 - torch.log(1 + math.exp(self.alpha) * torch.exp(nu * self.alpha_multiplier))
         else:
             b = math.log(1 - self.gamma) + nu
             w = math.log(self.gamma) + torch.log(exp_logits_mean)
