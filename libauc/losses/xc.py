@@ -46,7 +46,7 @@ class EntLossClassification(nn.Module):
     def alpha_fixed(self, epoch):
         return self.alpha
 
-    def get_alpha(self):
+    def get_alpha_current(self, epoch):
         return self.alpha_current_val
 
     def alpha_cosine(self, epoch, max_epoch=100):
