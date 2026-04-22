@@ -26,6 +26,7 @@ class EntLossClassification(nn.Module):
                  gamma: float = 0.9,
                  is_scent: bool = True,
                  alpha_multiplier: float = 1.0,
+                 alpha_mode: str = "fixed"   # NEW
                  ) -> None:
         super().__init__()
         self.data_size = data_size
@@ -35,6 +36,44 @@ class EntLossClassification(nn.Module):
         self.is_scent = is_scent
         self.nu = torch.zeros(data_size, device="cpu").reshape(-1, 1)
         self.alpha_multiplier = alpha_multiplier
+        # NEW: alpha strategy selector
+        self.alpha_mode = alpha_mode
+
+    # -----------------------------
+    # Alpha strategies
+    # -----------------------------
+    def alpha_fixed(self, epoch):
+        return self.alpha
+
+    def alpha_cosine(self, epoch, max_epoch=100):
+        alpha_min = 2.0
+        alpha_max = 10.0
+        return alpha_min + 0.5 * (alpha_max - alpha_min) * (
+            1 + math.cos(epoch / max_epoch * math.pi)
+        )
+
+    def alpha_random(self, epoch):
+        return random.uniform(2.0, 10.0)
+
+    def alpha_mixed(self, epoch):
+        f = random.choice([
+            self.alpha_fixed,
+            self.alpha_cosine,
+            self.alpha_random
+        ])
+        return f(epoch)
+
+    def get_alpha(self, epoch):
+        if self.alpha_mode == "fixed":
+            return self.alpha_fixed(epoch)
+        elif self.alpha_mode == "cosine":
+            return self.alpha_cosine(epoch)
+        elif self.alpha_mode == "random":
+            return self.alpha_random(epoch)
+        elif self.alpha_mode == "mixed":
+            return self.alpha_mixed(epoch)
+        else:
+            raise ValueError(f"Unknown alpha_mode: {self.alpha_mode}")
 
     def adjust_gamma(self, epoch: int, max_epoch: int) -> None:
         if not self.is_scent:
@@ -44,6 +83,7 @@ class EntLossClassification(nn.Module):
     def forward(self,
                 logits: torch.Tensor,
                 indices: torch.Tensor,
+                epoch: int = 0   # NEW
                 ) -> dict:
         nu = self.nu[indices].to(logits.device)
 
@@ -52,8 +92,14 @@ class EntLossClassification(nn.Module):
         uninit_idx = torch.nonzero(nu == 0.0, as_tuple=True)[0]
         exp_logits_mean = torch.sum(torch.exp(logits), dim=-1, keepdim=True).detach() / (logits.shape[1] - 1)
         if self.is_scent:
-            nu = nu + torch.log(1 + math.exp(self.alpha) * exp_logits_mean * torch.exp(nu * (self.alpha_multiplier - 1.0))) \
-                 - torch.log(1 + math.exp(self.alpha) * torch.exp(nu * self.alpha_multiplier))
+            alpha_val = self.get_alpha(epoch)
+            alpha_val = math.exp(alpha_val)  # log-scale to real scale
+            nu = nu + torch.log(
+                1 + alpha_val * exp_logits_mean *
+                torch.exp(nu * (self.alpha_multiplier - 1.0))
+            ) - torch.log(
+                1 + alpha_val * torch.exp(nu * self.alpha_multiplier)
+            )
         else:
             b = math.log(1 - self.gamma) + nu
             w = math.log(self.gamma) + torch.log(exp_logits_mean)
