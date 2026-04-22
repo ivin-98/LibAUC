@@ -31,6 +31,7 @@ class EntLossClassification(nn.Module):
         super().__init__()
         self.data_size = data_size
         self.alpha = alpha
+        self.alpha_current_val = alpha
         self.gamma_orig = gamma
         self.gamma = gamma
         self.is_scent = is_scent
@@ -44,6 +45,9 @@ class EntLossClassification(nn.Module):
     # -----------------------------
     def alpha_fixed(self, epoch):
         return self.alpha
+
+    def get_alpha(self):
+        return self.alpha_current_val
 
     def alpha_cosine(self, epoch, max_epoch=100):
         alpha_min = 2.0
@@ -93,6 +97,7 @@ class EntLossClassification(nn.Module):
         exp_logits_mean = torch.sum(torch.exp(logits), dim=-1, keepdim=True).detach() / (logits.shape[1] - 1)
         if self.is_scent:
             alpha_val = self.get_alpha(epoch)
+            self.alpha_current_val = alpha_val
             alpha_val = math.exp(alpha_val)  # log-scale to real scale
             nu = nu + torch.log(
                 1 + alpha_val * exp_logits_mean *
