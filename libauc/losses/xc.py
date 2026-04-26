@@ -49,12 +49,16 @@ class EntLossClassification(nn.Module):
     def get_alpha_current(self, epoch):
         return self.alpha_current_val
 
-    def alpha_cosine(self, epoch, max_epoch=100):
-        alpha_min = 2.0
-        alpha_max = 10.0
-        return alpha_min + 0.5 * (alpha_max - alpha_min) * (
+    def alpha_cosine(self, epoch, max_epoch=20):
+        alpha_start = 2.0
+        alpha_end = 0.1
+        return alpha_end + 0.5 * (alpha_start - alpha_end) * (
             1 + math.cos(epoch / max_epoch * math.pi)
         )
+
+    def alpha_exponential(self, epoch):
+        # Starts at 2.0 and decays by 20% every epoch
+        return 2.0 * (0.8 ** epoch) + 0.1
 
     def alpha_random(self, epoch):
         return random.uniform(2.0, 10.0)
@@ -76,6 +80,8 @@ class EntLossClassification(nn.Module):
             return self.alpha_random(epoch)
         elif self.alpha_mode == "mixed":
             return self.alpha_mixed(epoch)
+        elif self.alpha_mode == "expdecay":
+            return self.alpha_exponential(epoch)
         else:
             raise ValueError(f"Unknown alpha_mode: {self.alpha_mode}")
 
