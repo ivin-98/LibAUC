@@ -51,7 +51,7 @@ class EntLossClassification(nn.Module):
 
     def alpha_cosine(self, epoch, max_epoch=20):
         alpha_start = 2.0
-        alpha_end = 0.1
+        alpha_end = 0.005
         return alpha_end + 0.5 * (alpha_start - alpha_end) * (
             1 + math.cos(epoch / max_epoch * math.pi)
         )
