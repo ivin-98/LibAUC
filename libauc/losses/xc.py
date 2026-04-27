@@ -58,7 +58,7 @@ class EntLossClassification(nn.Module):
 
     def alpha_exponential(self, epoch):
         # Starts at 2.0 and decays by 20% every epoch
-        return 2.0 * (0.8 ** epoch) + 0.1
+        return 2.0 * (0.8 ** epoch)
 
     def alpha_random(self, epoch):
         return random.uniform(2.0, 10.0)
